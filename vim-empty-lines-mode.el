@@ -24,7 +24,7 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-;; Commentary:
+;;; Commentary:
 
 ;; This mode emulates the way that vim indicates the end of a file,
 ;; that is by putting a "tilde" cahracter (~) on any empty line that
@@ -95,7 +95,7 @@
 
 ;; The face that is used to display the indicators is `vim-empty-lines-face'.
 
-;; Code:
+;;; Code:
 
 (defgroup vim-empty-lines-mode
   nil
