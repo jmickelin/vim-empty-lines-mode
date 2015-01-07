@@ -51,7 +51,7 @@ Example:
 Note that Emacs displays the two cases identically!
 
 There is currently (as of Emacs 24.4) no way to implement the
-vim-like behaviour for `indicate-empty-lines' short of modifying
+vim-like behaviour for `indicate-empty-lines` short of modifying
 the Emacs core.
 
 This module emulates the vim-like behaviour using a different
@@ -60,13 +60,33 @@ overlay containing the indicators for the empty lines. This has the
 added advantage that it's trivial to customize the indicator to an
 arbitrary string, and customize its text properties.
 
+Initialization
+==============
+
 To enable `vim-empty-lines-mode' in a buffer, run
-
-    (vim-empty-lines-mode)
-
+```elisp
+(vim-empty-lines-mode)
+```
 To enable it globally, run
+```elisp
+(global-vim-empty-lines-mode)
+```
+To automatically enable it only for certain buffers, set it to run
+within a hook. For example, to enable it only for programming modes,
+run
+```elisp
+(add-hook 'prog-mode-hook 'vim-empty-lines-mode)
+```
+You can also choose to selectively disable it for certain modes. If
+it is initialized with
+```elisp
+(global-vim-empty-lines-mode)
+(add-hook 'eshell-mode-hook (lambda () (vim-empty-lines-mode -1)))
+```
+it will be enabled in all modes except `eshell-mode`.
 
-    (global-vim-empty-lines-mode)
+Customization
+=============
 
 The string that indicates an empty line can be customized, e.g.
 
