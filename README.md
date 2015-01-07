@@ -81,9 +81,9 @@ You can also choose to selectively disable it for certain modes. If
 it is initialized with
 ```elisp
 (global-vim-empty-lines-mode)
-(add-hook 'eshell-mode-hook (lambda () (vim-empty-lines-mode -1)))
+(add-hook 'text-mode-hook (lambda () (vim-empty-lines-mode -1)))
 ```
-it will be enabled in all modes except `eshell-mode`.
+it will be enabled in all modes except those derived from `text-mode`.
 
 Customization
 =============
