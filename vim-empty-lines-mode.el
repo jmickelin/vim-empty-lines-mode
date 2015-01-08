@@ -27,7 +27,7 @@
 ;;; Commentary:
 
 ;; This mode emulates the way that vim indicates the end of a file,
-;; that is by putting a "tilde" cahracter (~) on any empty line that
+;; that is by putting a "tilde" character (~) on any empty line that
 ;; follows the end of file.
 
 ;; Emacs provides a similar functionality that inserts a bitmap in the
