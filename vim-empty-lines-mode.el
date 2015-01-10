@@ -124,11 +124,19 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defun vim-empty-lines-update-overlay ()
+(defun vim-empty-lines-update-overlay (&optional window window-start)
+  (let ((w (or window
+               (let ((w (get-buffer-window)))
+                 (and (window-valid-p w) w)))))
+    ;; `w' could be nil but it's ok for `window-height' and `window-start'.
+    (vim-empty-lines-update-overlay-aux (window-height w)
+                                        (or window-start (window-start w)))))
+
+(defun vim-empty-lines-update-overlay-aux (window-height window-start)
   (when (overlayp vim-empty-lines-overlay)
-    (let* ((nlines-after-buffer-end (- (window-height)
+    (let* ((nlines-after-buffer-end (- window-height
                                        (- (line-number-at-pos (point-max))
-                                          (line-number-at-pos (window-start))))))
+                                          (line-number-at-pos window-start)))))
       (save-excursion
         (when (> nlines-after-buffer-end 1)
           (let ((indicators
@@ -165,8 +173,10 @@ with trailing newlines."
         (make-local-variable 'vim-empty-lines-overlay)
         (vim-empty-lines-create-overlay)
         (vim-empty-lines-update-overlay)
-        (add-hook 'post-command-hook 'vim-empty-lines-update-overlay t))
+        (add-hook 'post-command-hook 'vim-empty-lines-update-overlay t)
+        (add-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t))
     (remove-hook 'post-command-hook 'vim-empty-lines-update-overlay t)
+    (remove-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t)
     (when (overlayp vim-empty-lines-overlay)
       (delete-overlay vim-empty-lines-overlay)
       (setq vim-empty-lines-overlay nil))))
