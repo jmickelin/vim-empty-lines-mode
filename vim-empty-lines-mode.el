@@ -133,27 +133,28 @@ Must not contain '\\n'."
   (let ((w (or window
                (let ((w (get-buffer-window)))
                  (and (window-valid-p w) w)))))
-    ;; `w' could be nil but it's ok for `window-height' and `window-start'.
-    (vim-empty-lines-update-overlay-aux w)))
+    ;; `w' could be nil but it's ok for `window-height', `window-start' etc.
+    (with-current-buffer (window-buffer w)
+      (when (overlayp vim-empty-lines-overlay)
+        (vim-empty-lines-update-overlay-aux
+         (vim-empty-lines-nlines-after-buffer-end w))))))
 
-(defun vim-empty-lines-update-overlay-aux (window)
-  (when (overlayp vim-empty-lines-overlay)
-    (let* ((nlines-after-buffer-end (vim-empty-lines-nlines-after-buffer-end window)))
-      (save-excursion
-        (when (> nlines-after-buffer-end 1)
-          (let ((indicators
-                 (apply 'concat
-                        (make-list nlines-after-buffer-end
-                                   (concat "\n" vim-empty-lines-indicator)))))
-            (overlay-put vim-empty-lines-overlay
-                         'after-string
-                         (concat (propertize " "
-                                             ;; Forbid movement past
-                                             ;; the beginning of the
-                                             ;; after-string.
-                                             'cursor nlines-after-buffer-end)
-                                 (propertize indicators
-                                             'face 'vim-empty-lines-face)))))))))
+(defun vim-empty-lines-update-overlay-aux (nlines-after-buffer-end)
+  (when (> nlines-after-buffer-end 1)
+    (save-excursion
+      (let ((indicators
+             (apply 'concat
+                    (make-list nlines-after-buffer-end
+                               (concat "\n" vim-empty-lines-indicator)))))
+        (overlay-put vim-empty-lines-overlay
+                     'after-string
+                     (concat (propertize " "
+                                         ;; Forbid movement past
+                                         ;; the beginning of the
+                                         ;; after-string.
+                                         'cursor nlines-after-buffer-end)
+                             (propertize indicators
+                                         'face 'vim-empty-lines-face)))))))
 
 (defun vim-empty-lines-hide-overlay ()
   (when (overlayp vim-empty-lines-overlay)
