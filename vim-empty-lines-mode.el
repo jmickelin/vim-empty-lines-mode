@@ -131,7 +131,7 @@ Must not contain '\\n'."
 
 (defun vim-empty-lines-update-overlay (&optional window _window-start)
   (let ((w (or window
-               (let ((w (get-buffer-window)))
+               (let ((w (selected-window)))
                  (and (window-valid-p w) w)))))
     ;; `w' could be nil but it's ok for `window-height', `window-start' etc.
     (with-current-buffer (window-buffer w)
