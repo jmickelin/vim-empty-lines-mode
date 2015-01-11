@@ -124,19 +124,18 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defun vim-empty-lines-update-overlay (&optional window window-start)
+(defun vim-empty-lines-update-overlay (&optional window _window-start)
   (let ((w (or window
                (let ((w (get-buffer-window)))
                  (and (window-valid-p w) w)))))
     ;; `w' could be nil but it's ok for `window-height' and `window-start'.
-    (vim-empty-lines-update-overlay-aux (window-height w)
-                                        (or window-start (window-start w)))))
+    (vim-empty-lines-update-overlay-aux w)))
 
-(defun vim-empty-lines-update-overlay-aux (window-height window-start)
+(defun vim-empty-lines-update-overlay-aux (window)
   (when (overlayp vim-empty-lines-overlay)
-    (let* ((nlines-after-buffer-end (- window-height
+    (let* ((nlines-after-buffer-end (- (window-height window)
                                        (- (line-number-at-pos (point-max))
-                                          (line-number-at-pos window-start)))))
+                                          (line-number-at-pos (window-start window))))))
       (save-excursion
         (when (> nlines-after-buffer-end 1)
           (let ((indicators
