@@ -124,6 +124,11 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
+(defun vim-empty-lines-nlines-after-buffer-end (window)
+  (- (window-height window)
+     (- (line-number-at-pos (point-max))
+        (line-number-at-pos (window-start window)))))
+
 (defun vim-empty-lines-update-overlay (&optional window _window-start)
   (let ((w (or window
                (let ((w (get-buffer-window)))
@@ -133,9 +138,7 @@ Must not contain '\\n'."
 
 (defun vim-empty-lines-update-overlay-aux (window)
   (when (overlayp vim-empty-lines-overlay)
-    (let* ((nlines-after-buffer-end (- (window-height window)
-                                       (- (line-number-at-pos (point-max))
-                                          (line-number-at-pos (window-start window))))))
+    (let* ((nlines-after-buffer-end (vim-empty-lines-nlines-after-buffer-end window)))
       (save-excursion
         (when (> nlines-after-buffer-end 1)
           (let ((indicators
