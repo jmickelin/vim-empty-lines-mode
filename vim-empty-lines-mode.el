@@ -137,7 +137,10 @@ Must not contain '\\n'."
     (with-current-buffer (window-buffer w)
       (when (overlayp vim-empty-lines-overlay)
         (vim-empty-lines-update-overlay-aux
-         (vim-empty-lines-nlines-after-buffer-end w))))))
+         (apply 'max
+                (vim-empty-lines-nlines-after-buffer-end w)
+                (mapcar 'vim-empty-lines-nlines-after-buffer-end
+                        (remq w (get-buffer-window-list nil nil t)))))))))
 
 (defun vim-empty-lines-update-overlay-aux (nlines-after-buffer-end)
   (when (> nlines-after-buffer-end 1)
