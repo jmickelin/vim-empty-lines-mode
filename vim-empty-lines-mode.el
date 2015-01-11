@@ -124,12 +124,6 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defun vim-empty-lines-nlines-after-buffer-end (window)
-  (with-current-buffer (window-buffer window)
-    (- (window-height window)
-       (- (line-number-at-pos (point-max))
-          (line-number-at-pos (window-start window))))))
-
 (defun vim-empty-lines-update-overlay (&optional window _window-start)
   (let ((w (or window
                (let ((w (selected-window)))
@@ -137,10 +131,10 @@ Must not contain '\\n'."
     ;; `w' could be nil but it's ok for `window-height', `window-start' etc.
     (when (overlayp vim-empty-lines-overlay)
       (vim-empty-lines-update-overlay-aux
-       (apply 'max
-              (vim-empty-lines-nlines-after-buffer-end w)
-              (mapcar 'vim-empty-lines-nlines-after-buffer-end
-                      (remq w (get-buffer-window-list nil nil t))))))))
+       (with-current-buffer (window-buffer w)
+         (- (window-height w)
+            (- (line-number-at-pos (point-max))
+               (line-number-at-pos (window-start w)))))))))
 
 (defun vim-empty-lines-update-overlay-aux (nlines-after-buffer-end)
   (when (> nlines-after-buffer-end 1)
