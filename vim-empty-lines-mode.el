@@ -7,7 +7,7 @@
 ;; Version: 0.1
 ;; Keywords: emulations
 ;; URL: https://github.com/jmickelin/vim-empty-lines-mode
-;; Package-Requires: ((emacs "23.2"))
+;; Package-Requires: ((emacs "23"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -124,26 +124,18 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defmacro vim-empty-lines-setup-count-screen-lines (&rest body)
-  (declare (indent 0) (debug (body)))
-  ;; A kludge to bug#19553
-  ;; fixed in b544ab561fcb575790c963a2eda51524fa366409
-  ;; Temporally add a fresh newline to the end of the current buffer for a
-  ;; workaround to the `vertical-motion' bug.
-  ;; XXX: The fix is in the emacs-24 branch only at this time.
-  (if (and (version< emacs-version "25")
-           (version< "24.4.51" emacs-version))
-      `(progn ,@body)
-    `(if (save-excursion
-           (goto-char (point-max))
-           (and (bolp) (eolp)))
-         (progn ,@body)
-       (with-silent-modifications
-         (save-excursion
-           (goto-char (point-max))
-           (insert ?\n))
-         (unwind-protect (progn ,@body)
-           (delete-region (1- (point-max)) (point-max)))))))
+;; A kludge to bug#19553
+;; fixed in b544ab561fcb575790c963a2eda51524fa366409
+;; XXX: The fix is in the emacs-24 branch only at this time.
+(unless (and (version< emacs-version "25")
+             (version< "24.4.51" emacs-version))
+  (defadvice vertical-motion (around vim-empty-lines activate)
+    (if (not (overlayp vim-empty-lines-overlay))
+        ad-do-it
+      (let ((p (overlay-start vim-empty-lines-overlay)))
+        (delete-overlay vim-empty-lines-overlay)
+        (unwind-protect ad-do-it
+          (move-overlay vim-empty-lines-overlay p p))))))
 
 (defun vim-empty-lines-count-screen-lines (beg end &optional max)
   "Return the number of screen lines in the region.
@@ -156,18 +148,17 @@ with `buffer-size' if the buffer is large."
         window)
     (if (= beg end)
         0
-      (vim-empty-lines-setup-count-screen-lines
-        (save-excursion
-          (save-restriction
-            (widen)
-            (narrow-to-region (min beg end)
-                              (if (and (not count-final-newline)
-                                       (= ?\n (char-before (max beg end))))
-                                  (1- (max beg end))
-                                (max beg end)))
-            (goto-char (point-min))
-            (1+ (vertical-motion (or max (buffer-size)) ; XXX: changed
-                                 window))))))))
+      (save-excursion
+        (save-restriction
+          (widen)
+          (narrow-to-region (min beg end)
+                            (if (and (not count-final-newline)
+                                     (= ?\n (char-before (max beg end))))
+                                (1- (max beg end))
+                              (max beg end)))
+          (goto-char (point-min))
+          (1+ (vertical-motion (or max (buffer-size)) ; XXX: changed
+                               window)))))))
 
 (defun vim-empty-lines-nlines-after-buffer-end (window &optional window-start)
   (with-current-buffer (window-buffer window)
