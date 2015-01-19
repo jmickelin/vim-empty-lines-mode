@@ -159,6 +159,14 @@ Must not contain '\\n'."
                              (propertize indicators
                                          'face 'vim-empty-lines-face)))))))
 
+(defun vim-empty-lines-update-overlay-windows ()
+  (with-selected-frame (selected-frame)
+    (save-selected-window
+      (mapc (lambda (w)
+              (with-selected-window w
+                (vim-empty-lines-update-overlay w)))
+            (window-list (selected-frame) -1)))))
+
 (defun vim-empty-lines-hide-overlay ()
   (when (overlayp vim-empty-lines-overlay)
     (let ((ov vim-empty-lines-overlay))
@@ -180,9 +188,13 @@ with trailing newlines."
         (vim-empty-lines-create-overlay)
         (vim-empty-lines-update-overlay)
         (add-hook 'post-command-hook 'vim-empty-lines-update-overlay t)
-        (add-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t))
+        (add-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t)
+        (add-hook 'window-configuration-change-hook
+                  'vim-empty-lines-update-overlay-windows t))
     (remove-hook 'post-command-hook 'vim-empty-lines-update-overlay t)
     (remove-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t)
+    (remove-hook 'window-configuration-change-hook
+                 'vim-empty-lines-update-overlay-windows t)
     (when (overlayp vim-empty-lines-overlay)
       (delete-overlay vim-empty-lines-overlay)
       (setq vim-empty-lines-overlay nil))))
