@@ -116,12 +116,13 @@ Must not contain '\\n'."
 
 (defvar vim-empty-lines-overlay nil
   "Overlay that displays the empty line indicators.")
+(put 'vim-empty-lines-overlay 'permanent-local t)
 
 (defun vim-empty-lines-create-overlay ()
-  (setq vim-empty-lines-overlay (make-overlay (point-max)
-                                              (point-max)
-                                              nil
-                                              t t))
+  (setq-local vim-empty-lines-overlay (make-overlay (point-max)
+                                                    (point-max)
+                                                    nil
+                                                    t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
 (defun vim-empty-lines-nlines-after-buffer-end (window)
@@ -176,8 +177,8 @@ with trailing newlines."
   :global nil
   (if vim-empty-lines-mode
       (progn
-        (make-local-variable 'vim-empty-lines-overlay)
-        (vim-empty-lines-create-overlay)
+        (unless (overlayp vim-empty-lines-overlay)
+          (vim-empty-lines-create-overlay))
         (vim-empty-lines-update-overlay)
         (add-hook 'post-command-hook 'vim-empty-lines-update-overlay t)
         (add-hook 'window-scroll-functions 'vim-empty-lines-update-overlay t))
