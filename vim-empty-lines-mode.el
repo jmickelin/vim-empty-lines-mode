@@ -7,7 +7,7 @@
 ;; Version: 0.1
 ;; Keywords: emulations
 ;; URL: https://github.com/jmickelin/vim-empty-lines-mode
-;; Package-Requires: ((emacs "23"))
+;; Package-Requires: ((emacs "23.2"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -124,13 +124,71 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defun vim-empty-lines-nlines-after-buffer-end (window)
-  (with-current-buffer (window-buffer window)
-    (- (window-height window)
-       (- (line-number-at-pos (point-max))
-          (line-number-at-pos (window-start window))))))
+(defmacro vim-empty-lines-setup-count-screen-lines (&rest body)
+  (declare (indent 0) (debug (body)))
+  ;; A kludge to bug#19553
+  ;; fixed in b544ab561fcb575790c963a2eda51524fa366409
+  ;; Temporally add a fresh newline to the end of the current buffer for a
+  ;; workaround to the `vertical-motion' bug.
+  ;; XXX: The fix is in the emacs-24 branch only at this time.
+  (if (and (version< emacs-version "25")
+           (version< "24.4.51" emacs-version))
+      `(progn ,@body)
+    `(if (save-excursion
+           (goto-char (point-max))
+           (and (bolp) (eolp)))
+         (progn ,@body)
+       (with-silent-modifications
+         (save-excursion
+           (goto-char (point-max))
+           (insert ?\n))
+         (unwind-protect (progn ,@body)
+           (delete-region (1- (point-max)) (point-max)))))))
 
-(defun vim-empty-lines-update-overlay (&optional window _window-start)
+(defun vim-empty-lines-count-screen-lines (beg end &optional max)
+  "Return the number of screen lines in the region.
+
+Taken from `count-screen-lines' and quite stripped down.
+Unlike `count-screen-lines', calls `vertical-motion' with MAX as the
+argument for efficiencies. It is too expensive calling `vertical-motion'
+with `buffer-size' if the buffer is large."
+  (let (count-final-newline
+        window)
+    (if (= beg end)
+        0
+      (vim-empty-lines-setup-count-screen-lines
+        (save-excursion
+          (save-restriction
+            (widen)
+            (narrow-to-region (min beg end)
+                              (if (and (not count-final-newline)
+                                       (= ?\n (char-before (max beg end))))
+                                  (1- (max beg end))
+                                (max beg end)))
+            (goto-char (point-min))
+            (1+ (vertical-motion (or max (buffer-size)) ; XXX: changed
+                                 window))))))))
+
+(defun vim-empty-lines-nlines-after-buffer-end (window &optional window-start)
+  (with-current-buffer (window-buffer window)
+    (if (and window-start ;; chance to optimize for some cases.
+             (or (and (window-end) (= (point-max) (window-end)))
+                 (not (pos-visible-in-window-p (point-max) window))))
+        0
+      (vim-empty-lines-nlines-after-buffer-end-aux window))))
+
+(defun vim-empty-lines-nlines-after-buffer-end-aux (window)
+  (save-selected-window
+    (with-selected-window window
+      (with-current-buffer (window-buffer)
+        (let ((screen-height (- (window-height)
+                                1 ;; mode-line
+                                (if header-line-format 1 0))))
+          (- screen-height
+             (1- (vim-empty-lines-count-screen-lines
+                  (window-start) (point-max) screen-height))))))))
+
+(defun vim-empty-lines-update-overlay (&optional window window-start)
   (let ((w (or window
                (let ((w (selected-window)))
                  (and (window-valid-p w) w)))))
@@ -138,9 +196,10 @@ Must not contain '\\n'."
     (when (overlayp vim-empty-lines-overlay)
       (vim-empty-lines-update-overlay-aux
        (apply 'max
-              (vim-empty-lines-nlines-after-buffer-end w)
+              (vim-empty-lines-nlines-after-buffer-end w window-start)
               (mapcar 'vim-empty-lines-nlines-after-buffer-end
-                      (remq w (get-buffer-window-list nil nil t))))))))
+                      (remq w (get-buffer-window-list nil nil t)))))
+      (move-overlay vim-empty-lines-overlay (point-max) (point-max)))))
 
 (defun vim-empty-lines-update-overlay-aux (nlines-after-buffer-end)
   (when (> nlines-after-buffer-end 1)
