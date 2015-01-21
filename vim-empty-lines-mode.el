@@ -137,7 +137,8 @@ Must not contain '\\n'."
               `(defadvice ,function (around vim-empty-lines activate)
                  (if (not (overlayp vim-empty-lines-overlay))
                      ad-do-it
-                   (let ((p (overlay-start vim-empty-lines-overlay)))
+                   (let ((inhibit-redisplay t) ;; Hope not to break anything
+                         (p (overlay-start vim-empty-lines-overlay)))
                      (delete-overlay vim-empty-lines-overlay)
                      (unwind-protect ad-do-it
                        (move-overlay vim-empty-lines-overlay p p))))))
