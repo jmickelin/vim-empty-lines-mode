@@ -129,13 +129,22 @@ Must not contain '\\n'."
 ;; XXX: The fix is in the emacs-24 branch only at this time.
 (unless (and (version< emacs-version "25")
              (version< "24.4.51" emacs-version))
-  (defadvice vertical-motion (around vim-empty-lines activate)
-    (if (not (overlayp vim-empty-lines-overlay))
-        ad-do-it
-      (let ((p (overlay-start vim-empty-lines-overlay)))
-        (delete-overlay vim-empty-lines-overlay)
-        (unwind-protect ad-do-it
-          (move-overlay vim-empty-lines-overlay p p))))))
+  (eval-when-compile
+    (defmacro vim-empty-lines-advice-add-overlay-handling (&rest functions)
+      `(progn
+         ,@(mapcar
+            (lambda (function)
+              `(defadvice ,function (around vim-empty-lines activate)
+                 (if (not (overlayp vim-empty-lines-overlay))
+                     ad-do-it
+                   (let ((p (overlay-start vim-empty-lines-overlay)))
+                     (delete-overlay vim-empty-lines-overlay)
+                     (unwind-protect ad-do-it
+                       (move-overlay vim-empty-lines-overlay p p))))))
+            functions))))
+
+  (vim-empty-lines-advice-add-overlay-handling vertical-motion
+                                               move-to-window-line))
 
 (defun vim-empty-lines-count-screen-lines (beg end &optional max)
   "Return the number of screen lines in the region.
