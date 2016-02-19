@@ -124,23 +124,60 @@ Must not contain '\\n'."
                                               t t))
   (overlay-put vim-empty-lines-overlay 'window t))
 
-(defun vim-empty-lines-nlines-after-buffer-end (window)
-  (- (window-height window)
-     (- (line-number-at-pos (point-max))
-        (line-number-at-pos (window-start window)))))
+(defun vim-empty-lines-count-screen-lines (beg end &optional max)
+  "Return the number of screen lines in the region.
 
-(defun vim-empty-lines-update-overlay (&optional window _window-start)
+Taken from `count-screen-lines' and quite stripped down.
+Unlike `count-screen-lines', calls `vertical-motion' with MAX as the
+argument for efficiencies. It is too expensive calling `vertical-motion'
+with `buffer-size' if the buffer is large."
+  (let (count-final-newline
+        window)
+    (if (= beg end)
+        0
+      (save-excursion
+        (save-restriction
+          (widen)
+          (narrow-to-region (min beg end)
+                            (if (and (not count-final-newline)
+                                     (= ?\n (char-before (max beg end))))
+                                (1- (max beg end))
+                              (max beg end)))
+          (goto-char (point-min))
+          (1+ (vertical-motion (or max (buffer-size)) ; XXX: changed
+                               window)))))))
+
+(defun vim-empty-lines-nlines-after-buffer-end (window &optional window-start)
+  (with-current-buffer (window-buffer window)
+    (if (and window-start ;; chance to optimize for some cases.
+             (or (and (window-end) (= (point-max) (window-end)))
+                 (not (pos-visible-in-window-p (point-max) window))))
+        0
+      (vim-empty-lines-nlines-after-buffer-end-aux window))))
+
+(defun vim-empty-lines-nlines-after-buffer-end-aux (window)
+  (save-selected-window
+    (with-selected-window window
+      (with-current-buffer (window-buffer)
+        (let ((screen-height (- (window-height)
+                                1 ;; mode-line
+                                (if header-line-format 1 0))))
+          (- screen-height
+             (1- (vim-empty-lines-count-screen-lines
+                  (window-start) (point-max) screen-height))))))))
+
+(defun vim-empty-lines-update-overlay (&optional window window-start)
   (let ((w (or window
-               (let ((w (get-buffer-window)))
+               (let ((w (selected-window)))
                  (and (window-valid-p w) w)))))
     ;; `w' could be nil but it's ok for `window-height', `window-start' etc.
-    (with-current-buffer (window-buffer w)
-      (when (overlayp vim-empty-lines-overlay)
-        (vim-empty-lines-update-overlay-aux
-         (apply 'max
-                (vim-empty-lines-nlines-after-buffer-end w)
-                (mapcar 'vim-empty-lines-nlines-after-buffer-end
-                        (remq w (get-buffer-window-list nil nil t)))))))))
+    (when (overlayp vim-empty-lines-overlay)
+      (vim-empty-lines-update-overlay-aux
+       (apply 'max
+              (vim-empty-lines-nlines-after-buffer-end w window-start)
+              (mapcar 'vim-empty-lines-nlines-after-buffer-end
+                      (remq w (get-buffer-window-list nil nil t)))))
+      (move-overlay vim-empty-lines-overlay (point-max) (point-max)))))
 
 (defun vim-empty-lines-update-overlay-aux (nlines-after-buffer-end)
   (when (> nlines-after-buffer-end 1)
@@ -166,6 +203,36 @@ Must not contain '\\n'."
       (overlay-put ov 'display nil)
       (overlay-put ov 'after-string nil))))
 
+(defvar vim-empty-lines-initialize-p nil)
+
+(defun vim-empty-lines-initialize-maybe ()
+  "Setup some advices to emacs primitives for workarounds"
+  (unless vim-empty-lines-initialize-p
+    (setq vim-empty-lines-initialize-p t)
+
+    ;; A kludge to bug#19553
+    ;; fixed in b544ab561fcb575790c963a2eda51524fa366409
+    ;; XXX: The fix is in the emacs-24 branch only at this time.
+    (unless (and (version< emacs-version "25")
+                 (version< "24.4.51" emacs-version))
+      (eval-when-compile
+        (defmacro vim-empty-lines-advice-add-overlay-handling (&rest functions)
+          `(progn
+             ,@(mapcar
+                (lambda (function)
+                  `(defadvice ,function (around vim-empty-lines activate)
+                     (if (not (overlayp vim-empty-lines-overlay))
+                         ad-do-it
+                       (let ((inhibit-redisplay t) ;;Hope not to break anything
+                             (p (overlay-start vim-empty-lines-overlay)))
+                         (delete-overlay vim-empty-lines-overlay)
+                         (unwind-protect ad-do-it
+                           (move-overlay vim-empty-lines-overlay p p))))))
+                functions))))
+
+      (vim-empty-lines-advice-add-overlay-handling vertical-motion
+                                                   move-to-window-line))))
+
 ;;;###autoload
 (define-minor-mode vim-empty-lines-mode
   "Display `vim-empty-lines-indicator' on visible lines after the end of the buffer.
@@ -176,6 +243,7 @@ with trailing newlines."
   :global nil
   (if vim-empty-lines-mode
       (progn
+        (vim-empty-lines-initialize-maybe)
         (make-local-variable 'vim-empty-lines-overlay)
         (vim-empty-lines-create-overlay)
         (vim-empty-lines-update-overlay)
