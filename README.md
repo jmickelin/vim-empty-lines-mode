@@ -1,6 +1,13 @@
 vim-empty-lines-mode
 ====================
 
+**NOTE** (2016-02-19): Maintaining this package turned out to be more of a
+pain than expected due to a multitude of edge-cases caused by other
+functions and modes that assume that an end-of-file overlay is empty
+(or at least constant in size). Sadly, I could never find the time or
+motivation to put that much work into getting this package to play
+nicely with others, so development has ceased.
+
 Vim-like empty line indicator at end of files for Emacs.
 This mode emulates the way that vim indicates the end of a file,
 that is by putting a "tilde" character (`~`) on any empty line that
